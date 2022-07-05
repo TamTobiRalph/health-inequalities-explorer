@@ -11,6 +11,10 @@ jitterPlotServer <- function(id, selected, type) {
     dataset <- reactive({
       if (selected$geography == "ltla_shp_england" && type == "vulnerability") {
         ltla_vul_england
+      } else if (selected$geography == "ics_shp_england" && type == "vulnerability") {
+        ics_vul_england
+      } else if (selected$geography == "ics_shp_england" && type == "capacity") {
+        ics_cap_england
       } else {
         ltla_cap_england
       }
@@ -44,9 +48,9 @@ jitterPlotServer <- function(id, selected, type) {
       # Create plot object
       gg <- dataset |>
         ggplot(aes(x = value, y = variable, colour = selected)) +
-        geom_vline(
-          xintercept = 150, size = 2, alpha = .5, colour = "#5C747A"
-        ) +
+        # geom_vline(
+        #   xintercept = 150, size = 2, alpha = .5, colour = "#5C747A"
+        # ) +
         geom_point_interactive(
           aes(alpha = alpha, tooltip = area_name, data_id = area_name),
           position = position_jitter(height = 0.25, seed = 123),
@@ -62,7 +66,7 @@ jitterPlotServer <- function(id, selected, type) {
           breaks = legend_break_name
         ) +
         scale_alpha(guide = "none") +
-        labs(x = NULL, y = NULL)
+        labs(x = "Rank", y = NULL)
 
       # Render plot
       girafe(
