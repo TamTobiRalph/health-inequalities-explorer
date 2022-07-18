@@ -14,8 +14,19 @@ mapServer <- function(id, selected) {
           addProviderTiles(
             providers$CartoDB.Positron,
             options = providerTileOptions(minZoom = 6)
-            ) |>
-          setMaxBounds(-12, 49, 3.0, 61 ) |> 
+          ) |>
+          setMaxBounds(-12, 49, 3.0, 61) |>
+          addAwesomeMarkers(
+            data = hospitals_england,
+            popup = ~ as.character(hospital22_name),
+            label = ~ as.character(hospital22_name),
+            clusterOptions = markerClusterOptions(),
+            icon = awesomeIcons(
+              icon = "hospital-o",
+              library = "fa",
+              markerColor = "darkblue",
+            )
+          ) |>
           addPolygons(
             data = get(selected$geography),
             layerId = ~area_name,

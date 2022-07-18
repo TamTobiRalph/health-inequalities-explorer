@@ -1,1 +1,7 @@
-# See this repo for source: https://github.com/britishredcrosssociety/nhs-map
+library(tidyverse)
+library(geographr)
+library(sf)
+
+hospitals_england <- points_hospitals22
+
+usethis::use_data(hospitals_england, overwrite = TRUE)
