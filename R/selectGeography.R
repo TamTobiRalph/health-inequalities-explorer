@@ -30,4 +30,4 @@ selectGeographyTest <- function() {
 }
 
 # Examples
-selectGeographyTest()
+# selectGeographyTest()
