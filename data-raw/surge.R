@@ -218,3 +218,30 @@ cor <-
 
  plot(cor)
  correlate(cor)
+
+
+ # Replace '-' character with NA
+corr <-
+  correlation |>
+  mutate(
+    across(
+      .cols = !c(`org_code`),
+      ~ str_replace_all(.x, "-", NA_character_)
+    )
+  )
+
+# Drop Na
+  corr_ <-
+  corr |>
+  drop_na()
+
+#Select the neccessary variables
+  corr_no_na <- 
+  corr_ |> 
+  select(april_total, may_total, total_beds_available_day, general_acute_day_beds_occupied,
+  total_beds_available_night, general_acute_night_beds_occupied
+  )
+
+#Getting to see the correlation
+ plot(corr_no_na)
+ correlate(corr_no_na)
