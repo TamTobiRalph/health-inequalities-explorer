@@ -381,5 +381,5 @@ correlate <- correlate(correlation|>
 
 view(correlate)
 
-### Total bed available at night is has a strong correlation with discharge data. 
+### Total bed available at night has a strong correlation with discharge data. 
 ### Plus it has sufficent historical data to build a model.
