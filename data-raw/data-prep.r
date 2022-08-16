@@ -66,6 +66,49 @@ q2_11_12 <- "https://www.england.nhs.uk/statistics/wp-content/uploads/sites/2/20
 q1_11_12 <- "https://www.england.nhs.uk/statistics/wp-content/uploads/sites/2/2013/04/Beds-Open-Overnight-Web_File-Q1-2011-12-November-2012-Refresh-v3-Final.xls"
 )
 
+#file_ <- list()
+
+#i=1
+
+#for(qu in url_x) { 
+#GET(
+#    qu,
+#    write_disk(bed_night <- tempfile(fileext = ".xlsx"))
+#  ) 
+#  file_[[i]] <-
+#   read_excel(
+#    bed_night,
+#    sheet = "NHS Trust by Sector",
+#    skip = 14) |>
+#    slice(-(1:2)) |>
+#    select(
+#    `Org Code`,
+#    `bed` = `General & Acute...13`,
+#    
+#    )
+#   #mutate(quater=str_extract(qu, 'Q[1-4]'))
+#  i=i+1
+#}
+
+#for(qu in url_s) { 
+#GET(
+#    qu,
+#    write_disk(bed_night <- tempfile(fileext = ".xls"))
+#  ) 
+#  file_[[i]] <-
+#   read_excel(
+#    bed_night,
+#    sheet = "NHS Trust by Sector",
+#    skip = 14) |>
+#    select(
+#    `Org Code`,
+#    `bed` = `General & Acute...13`,
+#    
+#    )
+   #mutate(quater=str_extract(qu, 'Q[1-4]'))
+#  i=i+1
+#}
+
 
 file_ <- list()
 
@@ -82,9 +125,11 @@ GET(
     sheet = "NHS Trust by Sector",
     skip = 14) |>
     slice(-(1:2)) |>
+    mutate(`bed_perc` = (`General & Acute...13`/`General & Acute...7`) * 100 ) |>
     select(
     `Org Code`,
-    `bed` = `General & Acute...13`,
+    `bed` = `bed_perc`,
+    
     )
    #mutate(quater=str_extract(qu, 'Q[1-4]'))
   i=i+1
@@ -100,10 +145,11 @@ GET(
     bed_night,
     sheet = "NHS Trust by Sector",
     skip = 14) |>
-    slice(-(1:2)) |>
+    mutate(`bed_perc` = (`General & Acute...13`/`General & Acute...7`) * 100 ) |>
     select(
     `Org Code`,
-    `bed` = `General & Acute...13`,
+    `bed` = `bed_perc`,
+    
     )
    #mutate(quater=str_extract(qu, 'Q[1-4]'))
   i=i+1
@@ -163,77 +209,3 @@ autoplot(bed_create_ts, value)
 
 # THE ABOVE CODE WORKED
 #PUSH
-
-
-
-beds <- bed |> 
-        drop_na()|>
-        pivot_longer(cols = !c(`Org Code`)) |>
-        pivot_wider(names_from = `Org Code`) |>
-        rename(Quarter = name)
-
-view(beds)
-
-bed_ |> filter(`Org Code` == "RAL") |>
-ggplot(aes(x= Quarter, y=value, color = `Org Code`, group=1)) +
-  geom_line() + theme(axis.text.x = element_text(angle = 90, hjust = 0))
-
-library(tsibble)
-bed_ts <- beds |>
-            mutate(Quarter = yearquarter(Quarter)) |>
-            as_tsibble(key = !c(Quarter),
-             index = Quarter)
-
-bed_ts |> dplyr::select(c('Quarter', 'RAL'))
-bed_ts |>filter(c('Quarter', 'RAL'))
-  
-
-install.packages("ggfortify")
-library(ggfortify)
-
-bed_t <- bed_ |>
-            mutate(Quarter = yearquarter(Quarter)) |>
-            as_tsibble(key = c(`Org Code`),
-             index = Quarter) |>
-
-
-be <- tsibble(bed_t)
-
-feasts::autoplot(bed_t, value) +
-      labs(y = ")",
-       title = "Australian antidiabetic drug sales")
-class(bed_t)
-
-write.csv(bed,"C:\\Users\\de\\Documents\\HDR TP\\beds.csv", row.names = TRUE)
-
-ced <- read_csv('beds.csv') |> select(-c('...1'))
-cec <- read_csv('bed.csv') |> select(-c('...1'))
-
-ced[ced==0]<- NA
-
-
-ced_ <- ced |> 
-        drop_na()|>
-        pivot_longer(cols = !c(`Org Code`)) |>
-        rename(Quarter = name)
-
-
-ced_ts <- ced_ |>
-            mutate(Quarter = yearquarter(Quarter)) |>
-            as_tsibble(key = !c(Quarter),
-             index = Quarter) |>
-             as_tsibble()
-
-ced_t2 <- ced_ts |>
-  filter(`Org Code` == "R1C") |>
-  select(-c(`Org Code`)) |>
-  as_tsibble()
-
-
-
-feasts::autoplot(ced_t2, value)
-
-autoplot(ced_t2, value)
-
-
-cedd <- ced_ tsibble(ced_, index = Quarter)
