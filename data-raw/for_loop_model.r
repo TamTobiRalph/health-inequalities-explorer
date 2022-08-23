@@ -480,7 +480,7 @@ sar <- function(x) {
 
 
 
-
+###################################################
 
 del |> group_by(org_code) |> 
         nest() |>
@@ -537,3 +537,24 @@ m=m+1
         autoplot(del) +
         labs(title = "TRUSTS",
         y="Percentage )")
+
+
+
+del |> group_by(org_code) |> 
+        nest() |>
+        mutate(models = map(.x=data, seafit <-
+       model(
+        arima012011 = ARIMA(value ~ pdq(0,1,2) + PDQ(0,1,1)),
+        arima210011 = ARIMA(value ~ pdq(2,1,0) + PDQ(0,1,1)),
+        auto = ARIMA(value, stepwise = FALSE, approx = FALSE))|> 
+        tidy()))|>
+      unest(models) |>
+      group_by(models) |>
+      nest() |> 
+      mutate (aics = map(.x, glance(seafit) |> arrange(AICc) |> select(.model:BIC) |>
+      tidy())) |>
+ unest(aics)
+
+#############################
+
+bedz <- del
