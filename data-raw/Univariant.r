@@ -147,6 +147,51 @@ GET(
 }
 
 
+#file_ <- list()
+
+#i=1
+
+#for(qu in url_x) { 
+#GET(
+#    qu,
+#    write_disk(bed_night <- tempfile(fileext = ".xlsx"))
+#  ) 
+#  file_[[i]] <-
+#   read_excel(
+#    bed_night,
+#    sheet = "NHS Trust by Sector",
+#    skip = 14) |>
+#    slice(-(1:2)) |>
+#    mutate(`bed_perc` = (`General & Acute...13`/`General & Acute...7`) * 100 ) |>
+#    select(
+#    `Org Code`,
+#    `bed` = `bed_perc`,
+#    
+#    )
+   #mutate(quater=str_extract(qu, 'Q[1-4]'))
+#  i=i+1
+#}
+
+#for(qu in url_s) { 
+#GET(
+#    qu,
+#    write_disk(bed_night <- tempfile(fileext = ".xls"))
+#  ) 
+#  file_[[i]] <-
+#   read_excel(
+#    bed_night,
+#    sheet = "NHS Trust by Sector",
+#    skip = 14) |>
+#    mutate(`bed_perc` = (`General & Acute...13`/`General & Acute...7`) * 100 ) |>
+#    select(
+#    `Org Code`,
+#    `bed` = `bed_perc`,
+    
+#    )
+   #mutate(quater=str_extract(qu, 'Q[1-4]'))
+#  i=i+1
+#}
+
 kay <- file_ |> reduce(left_join, by = "Org Code")
 
 bed <- kay |> select(`Org Code`,
