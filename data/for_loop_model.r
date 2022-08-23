@@ -10,12 +10,16 @@ library(ggplot2)
 library(forecast)
 library(tsibble)
 library(feasts)
-
+library(purrr)
+library(broom)
+library(lubridate)
+library(magrittr)
+library(fable)
 
 ###Bed Occupancy
 #Load Bed occupancy url for dfferent quaters
 
-url_x <- c(
+url_xlsx <- c(
 q4_21_22 <- "https://www.england.nhs.uk/statistics/wp-content/uploads/sites/2/2022/05/Beds-Open-Overnight-Web_File-Q4-2021-22-Final-OIUJK.xlsx",
 q3_21_22 <- "https://www.england.nhs.uk/statistics/wp-content/uploads/sites/2/2022/05/Beds-Open-Overnight-Web_File-Q3-2021-22-Final.xlsx",
 q2_21_22 <- "https://www.england.nhs.uk/statistics/wp-content/uploads/sites/2/2022/05/Beds-Open-Overnight-Web_File-Q2-2021-22-Final.xlsx",
@@ -52,7 +56,7 @@ q4_13_14 <- "https://www.england.nhs.uk/statistics/wp-content/uploads/sites/2/20
 )
 
 #Loading bed occupancy url with different format "xls"
-url_s <- c(
+url_xls <- c(
 q3_13_14 <- "https://www.england.nhs.uk/statistics/wp-content/uploads/sites/2/2013/04/Beds-Open-Overnight-Web_File-Q3-2013-14-Revised-Final1.xls",
 q2_13_14 <- "https://www.england.nhs.uk/statistics/wp-content/uploads/sites/2/2013/04/Beds-Open-Overnight-Web_File-Q2-2013-14-Revised-Final1.xls",
 q1_13_14 <- "https://www.england.nhs.uk/statistics/wp-content/uploads/sites/2/2013/04/Beds-Open-Overnight-Web_File-Q1-2013-14-Nov-Revised-Revised-Final.xls",
@@ -70,7 +74,7 @@ q1_11_12 <- "https://www.england.nhs.uk/statistics/wp-content/uploads/sites/2/20
 
 #i=1
 
-#for(qu in url_x) { 
+#for(qu in url_xlsx) { 
 #GET(
 #    qu,
 #    write_disk(bed_night <- tempfile(fileext = ".xlsx"))
@@ -90,7 +94,7 @@ q1_11_12 <- "https://www.england.nhs.uk/statistics/wp-content/uploads/sites/2/20
 #  i=i+1
 #}
 
-#for(qu in url_s) { 
+#for(qu in url_xls) { 
 #GET(
 #    qu,
 #    write_disk(bed_night <- tempfile(fileext = ".xls"))
@@ -100,6 +104,7 @@ q1_11_12 <- "https://www.england.nhs.uk/statistics/wp-content/uploads/sites/2/20
 #    bed_night,
 #    sheet = "NHS Trust by Sector",
 #    skip = 14) |>
+#    slice(-(1:2)) |>
 #    select(
 #    `Org Code`,
 #    `bed` = `General & Acute...13`,
@@ -114,7 +119,7 @@ file_ <- list()
 
 i=1
 
-for(qu in url_x) { 
+for(qu in url_xlsx) { 
 GET(
     qu,
     write_disk(bed_night <- tempfile(fileext = ".xlsx"))
@@ -135,7 +140,7 @@ GET(
   i=i+1
 }
 
-for(qu in url_s) { 
+for(qu in url_xls) { 
 GET(
     qu,
     write_disk(bed_night <- tempfile(fileext = ".xls"))
@@ -145,6 +150,7 @@ GET(
     bed_night,
     sheet = "NHS Trust by Sector",
     skip = 14) |>
+    slice(-(1:2)) |>
     mutate(`bed_perc` = (`General & Acute...13`/`General & Acute...7`) * 100 ) |>
     select(
     `Org Code`,
@@ -155,25 +161,45 @@ GET(
   i=i+1
 }
 
-kay <- file_ |> reduce(left_join, by = "Org Code")
+# Joining all the data in our list, binding it with Org Code 
+join_bed <- file_ |> reduce(left_join, by = "Org Code")
 
-bed <- kay |> select(`Org Code`,
-          `2022 Q1`= "bed.x", `2021 Q4` = "bed.y", `2021 Q3` = "bed.x.x", `2021 Q2` = "bed.y.y", `2021 Q1` = "bed.x.x.x",
-          `2020 Q4` = "bed.y.y.y", `2020 Q3` = "bed.x.x.x.x", `2020 Q2` = "bed.y.y.y.y",`2020 Q1` = "bed.x.x.x.x.x",
-          `2019 Q4` = "bed.y.y.y.y.y", `2019 Q3` = "bed.x.x.x.x.x.x", `2019 Q2` = "bed.y.y.y.y.y.y", `2019 Q1` = "bed.x.x.x.x.x.x.x",
-          `2018 Q4` = "bed.y.y.y.y.y.y.y", `2018 Q3` = "bed.x.x.x.x.x.x.x.x", `2018 Q2` = "bed.y.y.y.y.y.y.y.y", `2018 Q1` = "bed.x.x.x.x.x.x.x.x.x",
-          `2017 Q4` = "bed.y.y.y.y.y.y.y.y.y", `2017 Q3` = "bed.x.x.x.x.x.x.x.x.x.x", `2017 Q2` = "bed.y.y.y.y.y.y.y.y.y.y", `2017 Q1` = "bed.x.x.x.x.x.x.x.x.x.x.x",
-          `2016 Q4` = "bed.y.y.y.y.y.y.y.y.y.y.y", `2016 Q3` = "bed.x.x.x.x.x.x.x.x.x.x.x.x", `2016 Q2` = "bed.y.y.y.y.y.y.y.y.y.y.y.y", `2016 Q1` = "bed.x.x.x.x.x.x.x.x.x.x.x.x.x",
-          `2015 Q4` = "bed.y.y.y.y.y.y.y.y.y.y.y.y.y",`2015 Q3` = "bed.x.x.x.x.x.x.x.x.x.x.x.x.x.x",`2015 Q2` = "bed.y.y.y.y.y.y.y.y.y.y.y.y.y.y",`2015 Q1` = "bed.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x",
-          `2014 Q4` = "bed.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y", `2014 Q3` ="bed.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x", `2014 Q2` = "bed.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y", `2014 Q1` = "bed.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x",
-          `2013 Q4` = "bed.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y", `2013 Q3` = "bed.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x",`2013 Q2` = "bed.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y", `2013 Q1` = "bed.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x",
-          `2012 Q4` = "bed.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y", `2012 Q3` = "bed.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x", `2012 Q2` = "bed.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y", `2012 Q1` = "bed.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x",
-          `2011 Q4` = "bed.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y", `2011 Q3` = "bed.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x", `2011 Q2` = "bed.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y"   
-) 
+# Renaming the Quater Column
+# This should be done in a better way, as it is hetic when you decide to cut some years off
+#bed <- join_bed |> select(`Org Code`,
+#          `2022 Q1`= "bed.x", `2021 Q4` = "bed.y", `2021 Q3` = "bed.x.x", `2021 Q2` = "bed.y.y", `2021 Q1` = "bed.x.x.x",
+#          `2020 Q4` = "bed.y.y.y", `2020 Q3` = "bed.x.x.x.x", `2020 Q2` = "bed.y.y.y.y",`2020 Q1` = "bed.x.x.x.x.x",
+#          `2019 Q4` = "bed.y.y.y.y.y", `2019 Q3` = "bed.x.x.x.x.x.x", `2019 Q2` = "bed.y.y.y.y.y.y", `2019 Q1` = "bed.x.x.x.x.x.x.x",
+#          `2018 Q4` = "bed.y.y.y.y.y.y.y", `2018 Q3` = "bed.x.x.x.x.x.x.x.x", `2018 Q2` = "bed.y.y.y.y.y.y.y.y", `2018 Q1` = "bed.x.x.x.x.x.x.x.x.x",
+#          `2017 Q4` = "bed.y.y.y.y.y.y.y.y.y", `2017 Q3` = "bed.x.x.x.x.x.x.x.x.x.x", `2017 Q2` = "bed.y.y.y.y.y.y.y.y.y.y", `2017 Q1` = "bed.x.x.x.x.x.x.x.x.x.x.x",
+#          `2016 Q4` = "bed.y.y.y.y.y.y.y.y.y.y.y", `2016 Q3` = "bed.x.x.x.x.x.x.x.x.x.x.x.x", `2016 Q2` = "bed.y.y.y.y.y.y.y.y.y.y.y.y", `2016 Q1` = "bed.x.x.x.x.x.x.x.x.x.x.x.x.x",
+#          `2015 Q4` = "bed.y.y.y.y.y.y.y.y.y.y.y.y.y",`2015 Q3` = "bed.x.x.x.x.x.x.x.x.x.x.x.x.x.x",`2015 Q2` = "bed.y.y.y.y.y.y.y.y.y.y.y.y.y.y",`2015 Q1` = "bed.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x",
+#          `2014 Q4` = "bed.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y", `2014 Q3` ="bed.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x", `2014 Q2` = "bed.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y", `2014 Q1` = "bed.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x",
+#          `2013 Q4` = "bed.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y", `2013 Q3` = "bed.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x",`2013 Q2` = "bed.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y", `2013 Q1` = "bed.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x",
+#          `2012 Q4` = "bed.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y", `2012 Q3` = "bed.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x", `2012 Q2` = "bed.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y", `2012 Q1` = "bed.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x",
+#         `2011 Q4` = "bed.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y", `2011 Q3` = "bed.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x", `2011 Q2` = "bed.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y"   
+#) 
+
+
+# Without the covid year
+bed <- bed_join |> select(`Org Code`,
+                          `2019 Q4`= "bed.x", `2019 Q3` = "bed.y", `2019 Q2` = "bed.x.x", `2019 Q1` = "bed.y.y", `2018 Q4` = "bed.x.x.x",
+                          `2018 Q3` = "bed.y.y.y", `2018 Q2` = "bed.x.x.x.x", `2018 Q1` = "bed.y.y.y.y",`2017 Q4` = "bed.x.x.x.x.x",
+                          `2017 Q3` = "bed.y.y.y.y.y", `2017 Q2` = "bed.x.x.x.x.x.x", `2017 Q1` = "bed.y.y.y.y.y.y", `2016 Q4` = "bed.x.x.x.x.x.x.x",
+                          `2016 Q3` = "bed.y.y.y.y.y.y.y", `2016 Q2` = "bed.x.x.x.x.x.x.x.x", `2016 Q1` = "bed.y.y.y.y.y.y.y.y", `2015 Q4` = "bed.x.x.x.x.x.x.x.x.x",
+                          `2015 Q3` = "bed.y.y.y.y.y.y.y.y.y", `2015 Q2` = "bed.x.x.x.x.x.x.x.x.x.x", `2015 Q1` = "bed.y.y.y.y.y.y.y.y.y.y", `2014 Q4` = "bed.x.x.x.x.x.x.x.x.x.x.x",
+                          `2014 Q3` = "bed.y.y.y.y.y.y.y.y.y.y.y", `2014 Q2` = "bed.x.x.x.x.x.x.x.x.x.x.x.x", `2014 Q1` = "bed.y.y.y.y.y.y.y.y.y.y.y.y", `2013 Q4` = "bed.x.x.x.x.x.x.x.x.x.x.x.x.x",
+                          `2013 Q3` = "bed.y.y.y.y.y.y.y.y.y.y.y.y.y",`2013 Q2` = "bed.x.x.x.x.x.x.x.x.x.x.x.x.x.x",`2013 Q1` = "bed.y.y.y.y.y.y.y.y.y.y.y.y.y.y",`2012 Q4` = "bed.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x",
+                          `2012 Q3` = "bed.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y", `2012 Q2` ="bed.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x", `2012 Q1` = "bed.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y", `2011 Q4` = "bed.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x",
+                          `2011 Q3` = "bed.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y", `2011 Q2` = "bed.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x",`2013 Q2` = "bed.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y", `2013 Q1` = "bed.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x",
+                          `2012 Q4` = "bed.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y", `2012 Q3` = "bed.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x", `2012 Q2` = "bed.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y", `2012 Q1` = "bed.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x",
+                          `2011 Q4` = "bed.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y", `2011 Q3` = "bed.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x", `2011 Q2` = "bed.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y"   
+
 
 # Data prep for python
 
-#bed <- kay |> select(`Org Code`,
+# Renaming the Quater Column
+#bed <- join_bed |> select(`Org Code`,
 #          "2022-03-31" = "bed.x", "2021-12-31" = "bed.y", "2021-09-30" = "bed.x.x", "2021-06-30" = "bed.y.y", "2021-03-31" = "bed.x.x.x",
 #          "2020-12-31" = "bed.y.y.y", "2020-09-30" = "bed.x.x.x.x", "2020-06-30" = "bed.y.y.y.y","2020-03-31" = "bed.x.x.x.x.x",
 #          "2019-12-31" = "bed.y.y.y.y.y", "2019-09-30" = "bed.x.x.x.x.x.x", "2019-06-30" = "bed.y.y.y.y.y.y", "2019-03-31" = "bed.x.x.x.x.x.x.x",
@@ -187,8 +213,147 @@ bed <- kay |> select(`Org Code`,
 #          "2011-12-31" = "bed.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y", "2011-09-30" = "bed.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x", "2011-06-30" = "bed.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y"   
 #) 
 
+# Converting all 0 values to NAs so as to be able to eliminate it
+# This should be reviewed as we are loosing so many useful data
 bed[bed==0] <- NA
 
+##########################################################################################################################
+# FITTING ONE SINGLE MODEL
+
+# The next line of codes from (208 - 215) drops all NA values, Pivot longer, rename the Quater column and convert it to date type
+
+bed_no_NA <- bed |> 
+  drop_na()|>
+  pivot_longer(cols = !c(`Org Code`))
+
+bed_rename <- bed_no_NA|>
+  rename(quarter = name)|>
+  mutate(quarter = yearquarter(quarter))
+
+# For us to fit one model, we summed all Trust for each quarter  
+bed_summary <- bed_rename |> 
+  group_by(quarter) |> 
+  summarise(value = sum(value))
+
+# Converting our data to a tssible object in order to run Time series analysis and models
+bed_sm <- tsibble(
+  quarter = bed_summary$quarter,
+  value = bed_summary$value,
+  index = quarter
+)
+
+# Let us have a look at how our data looks over the years
+autoplot(bed_sm, value)
+
+# Let us check to see if we need differencing for our data to see if it is stationary
+# using unit root test 
+# We will be using Kwiatkowski-Phillips-Schmidt-Shin (KPSS) test  
+
+bed_sm |> 
+  features(value, unitroot_kpss)
+
+# Small p values such as (e.g., less than 0.05) indicates we need differencing
+# Our p value is 0.01
+
+# Another way is using KPSS tests to see how many differencing we need
+
+bed_sm |> 
+  features(value, unitroot_ndiffs)
+
+# This shows we need to do a first order differencing and check if it is okay
+
+bed_sm <- bed_sm |>
+  mutate(diff_value = difference(value))
+bed_sm |>
+  features(diff_value, unitroot_ndiffs)
+
+# I also think i should do a seasonal differencing and see if that will be ok
+
+bed_sm <- bed_sm |>
+  mutate(log_value = difference(log(value), 12))
+  
+bed_sm |>
+  features(log_value, unitroot_ndiffs)
+
+# Our data is ready, now let us fit our model
+
+fit <- bed_sm |>
+  model(arima210 = ARIMA(value ~ pdq(2,1,0)),
+        arima013 = ARIMA(value ~ pdq(0,1,3)),
+        stepwise = ARIMA(value),
+        search = ARIMA(value, stepwise=FALSE))
+
+# Let us find out which model has the lowest AIC value and use that to forcast.
+glance(fit) |> arrange(AICc) |> select(.model:BIC)
+
+# Now let us forecast
+forecast(fit, h=35) |>
+  filter(.model=="arima013") |>
+  autoplot(bed_sm) +
+  labs(title = "TRUSTS",
+       y="Percentage")
+
+
+# Differencing
+
+dif_fit <- bed_sm |>
+  model(arima210 = ARIMA(diff_value ~ pdq(2,1,0)),
+        arima013 = ARIMA(diff_value ~ pdq(0,1,3)),
+        stepwise = ARIMA(diff_value),
+        search = ARIMA(diff_value, stepwise=FALSE))
+
+# Let us find out which model has the lowest AIC value and use that to forcast.
+glance(dif_fit) |> arrange(AICc) |> select(.model:BIC)
+
+# Now let us forecast
+forecast(dif_fit, h=35) |>
+  filter(.model=="stepwise") |>
+  autoplot(bed_sm) +
+  labs(title = "TRUSTS",
+       y="Percentage")
+
+# Now lets see what the seasonal Arima does
+
+seasonal_a <- bed_sm|>
+  model(
+    arima012011 = ARIMA(log_value ~ pdq(0,1,2) + PDQ(0,1,1)),
+    arima210011 = ARIMA(log_value ~ pdq(2,1,0) + PDQ(0,1,1)),
+    auto = ARIMA(log_value, stepwise = FALSE, approx = FALSE)
+  )
+
+glance(seasonal_a) |> arrange(AICc) |> select(.model:BIC)
+
+forecast(seasonal_a, h=35) |>
+  filter(.model=="arima012011") |>
+  autoplot(bed_sm) +
+  labs(title = "TRUSTS",
+       y="Percentage OK ")
+
+
+forecast(seasonal_a, h=35) |>
+  filter(.model=="auto") |>
+  autoplot(bed_sm) +
+  labs(title = "TRUSTS",
+       y="Percentage OK ")
+
+# Lets just go with the normal value
+seasonal_ <- bed_sm|>
+  model(
+    arima012011 = ARIMA(value ~ pdq(0,1,2) + PDQ(0,1,1)),
+    arima210011 = ARIMA(value ~ pdq(2,1,0) + PDQ(0,1,1)),
+    auto = ARIMA(value, stepwise = FALSE, approx = FALSE)
+  )
+
+glance(seasonal_) |> arrange(AICc) |> select(.model:BIC)
+
+forecast(seasonal_, h=35) |>
+  filter(.model=="arima012011") |>
+  autoplot(bed_sm) +
+  labs(title = "TRUSTS",
+       y="Percentage OK ")
+
+##############################################################################################################################
+# Drop all NA values, Pivot longer, rename the Quater column and convert it to date type
 bed_time <- bed |> 
         drop_na()|>
         pivot_longer(cols = !c(`Org Code`)) |>
@@ -196,7 +361,8 @@ bed_time <- bed |>
         mutate(Quarter = yearquarter(Quarter))
 
 
-del <- tsibble(
+# Converting our data to a tssible object in order to run Time series analysis and models
+multi <- tsibble(
   quarter = bed_time$Quarter,
   org_code = bed_time$`Org Code`,
   value = bed_time$value,
@@ -204,13 +370,134 @@ del <- tsibble(
   index = quarter
 )
 
-
+# Let us have a look at how our data looks over the years
 autoplot(del, value)
 
+#########################################################################################################
+del_multi |>
+  group_by(org_code)|>
+  nest()|>
+  mutate(AIC = map(.x~ model(
+    arima012011 = ARIMA(value ~ pdq(0,1,2) + PDQ(0,1,1)),
+    arima210011 = ARIMA(value ~ pdq(2,1,0) + PDQ(0,1,1)),
+    auto = ARIMA(value, stepwise = FALSE, approx = FALSE), data =.x
+  ))) |>
+  tidy()
 
-#Models
+###########################################################################################################
+neli <- del_multi |>
+  group_by(org_code)|>
+  nest()|>
+  mutate(AIC = map())
 
-models <- list()
+neli |> filter(org_code == 'RA2')
+
+
+Ra <- del_multi |> filter(org_code == 'RA7')|>
+  model(arima210 = ARIMA(value ~ pdq(2,1,0)),
+        arima013 = ARIMA(value ~ pdq(0,1,3)),
+        stepwise = ARIMA(value),
+        search = ARIMA(value, stepwise=FALSE))
+
+glance(Ra) |> arrange(AICc) |> select(.model:BIC)
+
+
+forecast(Ra, h=15) |>
+filter(.model=="search") |>
+autoplot(del_multi|> filter(org_code == 'RA7')) +
+labs(title = "TRUSTS", y="Percentage )")
+
+forecast(seafit, h=35) |>
+  filter(.model=="arima012011") |>
+  autoplot(del) +
+  labs(title = "TRUSTS",
+       y="Percentage OK ")
+###########################################################################################################
+SRa <- del_multi |> filter(org_code == 'RA7')|>
+  model(
+    arima012011 = ARIMA(value ~ pdq(0,1,2) + PDQ(0,1,1)),
+    arima210011 = ARIMA(value ~ pdq(2,1,0) + PDQ(0,1,1)),
+    auto = ARIMA(value, stepwise = FALSE, approx = FALSE)
+  )
+
+glance(SRa) |> arrange(AICc) |> select(.model:BIC)
+
+forecast(SRa, h=35) |>
+  filter(.model=="arima012011") |>
+  autoplot(del_multi|> filter(org_code == 'RA7')) +
+  labs(title = "TRUSTS",
+       y="Percentage OK ")
+
+
+###########################################################################################################
+del_multi |>
+  split(del_multi$org_code)|>
+  map(~ model(
+    arima012011 = ARIMA(value ~ pdq(0,1,2) + PDQ(0,1,1)),
+    arima210011 = ARIMA(value ~ pdq(2,1,0) + PDQ(0,1,1)),
+    auto = ARIMA(value, stepwise = FALSE, approx = FALSE), 
+  ), data = del_multi)
+
+
+mtcars
+%>%
+  split(.$cyl)
+
+
+%>%
+  map(~ lm(mpg ~ wt, data = .)) %>%
+  map(summary) %>%
+  map_dbl("r.squared")
+
+#########################################################################################################
+sar <- function(x) {
+  SRa <- model(
+  arima012011 = ARIMA(x ~ pdq(0,1,2) + PDQ(0,1,1)),
+  arima210011 = ARIMA(x ~ pdq(2,1,0) + PDQ(0,1,1)),
+  auto = ARIMA(x, stepwise = FALSE, approx = FALSE)
+)
+  gl<- glance(SRa) |> arrange(AICc) |> select(.model:BIC)
+  return(gl)
+}
+
+
+###
+
+
+#  https://otexts.com/fpp2/
+#  https://algotech.netlify.app/blog/purrr-operly-fitting-multiple-time-series-model/
+#  https://stackoverflow.com/questions/50423078/plotting-timeseries-with-map-from-purrr
+#########################################################################################################
+sar <- function(x) {
+  SRa <- model(
+  arima012011 = ARIMA(x ~ pdq(0,1,2) + PDQ(0,1,1)),
+  arima210011 = ARIMA(x ~ pdq(2,1,0) + PDQ(0,1,1)),
+  auto = ARIMA(x, stepwise = FALSE, approx = FALSE)
+)
+  gl<- glance(SRa) |> arrange(AICc) |> select(.model:BIC)
+  return(gl)
+}
+
+
+
+
+
+del |> group_by(org_code) |> 
+        nest() |>
+        mutate(models = map(.x=data, seafit <-
+       model(
+        arima012011 = ARIMA(value ~ pdq(0,1,2) + PDQ(0,1,1)),
+        arima210011 = ARIMA(value ~ pdq(2,1,0) + PDQ(0,1,1)),
+        auto = ARIMA(value, stepwise = FALSE, approx = FALSE))|> 
+        tidy()))|>
+      unest(models) |>
+      group_by(models) |>
+      nest() |> 
+      mutate (aics = map(.x, glance(seafit) |> arrange(AICc) |> select(.model:BIC) |>
+      tidy())) |>
+ unest(aics)
+
+models <- list()  
 
 m=1
 
