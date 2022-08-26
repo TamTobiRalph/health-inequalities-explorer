@@ -4,12 +4,12 @@
 Discharge data found on NHS website was just for April, May and June. This would not be enough to run a time series model.
 So the we need to look for a data that correlates with Discharge data. I experimented on Bed Occupancy (night and Day), and A&E data
 Bed Occupancy for night was best amongst all as I had about 0.71 corelation.
-This can be found on the surge branch in data-raw
+This can be found on the surge branch in data-raw. correlation test
 
 ## Second Step
 This step involved gathering bed occupancy from  the first quater of 2011 to the fourth quater of 2021.
 Ran an arima model on the sum of all trusts (percentage) and then ran on all individual trusts.
-
+This can be found on the surge branch in data-raw, arima_model_working_percent.r file
 ### Things to work
 1. [Line 24]  Find a better way to create a for loop
                that will clean and store the bed data with different file format  
