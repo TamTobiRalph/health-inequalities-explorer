@@ -1,4 +1,4 @@
-# Hospital Discharge 
+# Hospital Discharge Forecast
 
 ## First Step
 Discharge data found on NHS website was just for April, May and June. This would not be enough to run a time series model.
