@@ -212,3 +212,5 @@ glimpse(discharge_ae)
 correlate(discharge_ae |>
             select(where(is.double)))
 
+### This has Weak correlation with discharge data. 
+### This code could be written better

@@ -16,8 +16,10 @@ library(lubridate)
 library(magrittr)
 library(fable)
 library(fpp3)
+
 ###Bed Occupancy
-#Load Bed occupancy url for dfferent quaters
+# Load Bed occupancy url for dfferent quaters from the first quarter 2011 to the 4th quater of 2021
+# However because of the skewed data in 2020 and part of 2021, as a result of covid, we only be using data from 2019
 
 url_xlsx <- c(
   #q4_21_22 <- "https://www.england.nhs.uk/statistics/wp-content/uploads/sites/2/2022/05/Beds-Open-Overnight-Web_File-Q4-2021-22-Final-OIUJK.xlsx",
@@ -70,55 +72,61 @@ url_xls <- c(
   q1_11_12 <- "https://www.england.nhs.uk/statistics/wp-content/uploads/sites/2/2013/04/Beds-Open-Overnight-Web_File-Q1-2011-12-November-2012-Refresh-v3-Final.xls"
 )
 
+# Creating an empty list that takes we can store all our bed occupancy data
+
 #file_ <- list()
 
 #i=1
 
+# Creating a for loop that picks the exact data we want, clean it and stores it in our empty list for file format of xlxs
 #for(qu in url_xlsx) { 
-#GET(
+#  GET(
 #    qu,
 #    write_disk(bed_night <- tempfile(fileext = ".xlsx"))
 #  ) 
 #  file_[[i]] <-
-#   read_excel(
-#    bed_night,
-#    sheet = "NHS Trust by Sector",
-#    skip = 14) |>
+#    read_excel(
+#      bed_night,
+#      sheet = "NHS Trust by Sector",
+#      skip = 14) |>
 #    slice(-(1:2)) |>
 #    select(
-#    `Org Code`,
-#    `bed` = `General & Acute...13`,
-#    
+#      `Org Code`,
+#      `bed` = `General & Acute...13`,
+#      
 #    )
-#   #mutate(quater=str_extract(qu, 'Q[1-4]'))
+#  #mutate(quater=str_extract(qu, 'Q[1-4]'))
 #  i=i+1
 #}
 
+# Creating a for loop that picks the exact data we want, clean it and stores it in our empty list for file format of xlx
 #for(qu in url_xls) { 
-#GET(
+#  GET(
 #    qu,
 #    write_disk(bed_night <- tempfile(fileext = ".xls"))
 #  ) 
 #  file_[[i]] <-
-#   read_excel(
-#    bed_night,
-#    sheet = "NHS Trust by Sector",
-#    skip = 14) |>
+#    read_excel(
+#      bed_night,
+#      sheet = "NHS Trust by Sector",
+#      skip = 14) |>
 #    slice(-(1:2)) |>
 #    select(
-#    `Org Code`,
-#    `bed` = `General & Acute...13`,
-#    
+#      `Org Code`,
+#      `bed` = `General & Acute...13`,
+#      
 #    )
-#mutate(quater=str_extract(qu, 'Q[1-4]'))
+#  #mutate(quater=str_extract(qu, 'Q[1-4]'))
 #  i=i+1
 #}
 
-
+# Creating an empty list that takes we can store all our bed occupancy data
 file_ <- list()
 
 i=1
 
+# Creating a for loop that picks the exact data we want, clean it, calculates the percentage and,
+# stores it in our empty list for file format of xlxs
 for(qu in url_xlsx) { 
   GET(
     qu,
@@ -129,17 +137,19 @@ for(qu in url_xlsx) {
       bed_night,
       sheet = "NHS Trust by Sector",
       skip = 14) |>
-    slice(-(1:2)) |>
+   slice(-(1:2)) |>
     mutate(`bed_perc` = (`General & Acute...13`/`General & Acute...7`) * 100 ) |>
     select(
       `Org Code`,
       `bed` = `bed_perc`,
       
     )
-  #mutate(quater=str_extract(qu, 'Q[1-4]'))
+#mutate(quater=str_extract(qu, 'Q[1-4]'))
   i=i+1
 }
 
+# Creating a for loop that picks the exact data we want, clean it, calculates the percentage and,
+# stores it in our empty list for file format of xls
 for(qu in url_xls) { 
   GET(
     qu,
@@ -211,9 +221,14 @@ bed <- bed_join |> select(`Org Code`,
 #          "2011-12-31" = "bed.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y", "2011-09-30" = "bed.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x", "2011-06-30" = "bed.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y.y"   
 #) 
 
-# We will duplicate this data for later when we want to run our model on the individual Trust
+# We will duplicate this data for later when we want to run our model on the individual Trusts
 
 multi_trust <- bed
+
+# Getting the number of trust so when we want to fit a single model across we get the percentage and not just a 1000
+# This doesn't work well as i have not replaced the missing values. So the percentage is around 62% which gives us false insight 
+
+number_of_trusts <- length(unique(bed$`Org Code`))
 
 
 # Converting all 0 values to NAs so as to be able to eliminate it
@@ -234,134 +249,86 @@ bed_summary <- bed |>
   summarise(value = sum(value))
 
 # Converting our data to a tssible object in order to run Time series analysis and models
-bed_sm <- tsibble(
+bed_data_single_model <- tsibble(
   quarter = bed_summary$quarter,
   value = bed_summary$value,
   index = quarter
 )
 
+
 # Let us have a look at how our data looks over the years
-autoplot(bed_sm, value)
-
-# Let us check to see if we need differencing for our data to see if it is stationary
-# using unit root test 
-# We will be using Kwiatkowski-Phillips-Schmidt-Shin (KPSS) test  
-
-bed_sm |> 
-  features(value, unitroot_kpss)
-
-# Small p values such as (e.g., less than 0.05) indicates we need differencing
-# Our p value is 0.01
-
-# Another way is using KPSS tests to see how many differencing we need
-
-bed_sm |> 
-  features(value, unitroot_ndiffs)
-
-# This shows we need to do a first order differencing and check if it is okay
-
-bed_sm <- bed_sm |>
-  mutate(diff_value = difference(value))
-
-bed_sm |> 
-  features(diff_value, unitroot_kpss)
-
-bed_sm |>
-  features(diff_value, unitroot_ndiffs)
-
-# I also think i should do a seasonal differencing and see if that will be ok
-
-bed_sm <- bed_sm |>
-  mutate(log_value = difference(log(value), 12))
-
-bed_sm |> 
-  features(log_value, unitroot_kpss)
-
-
-bed_sm |>
-  features(log_value, unitroot_ndiffs)
+autoplot(bed_data_single_model, value)
 
 # Our data is ready, now let us fit our model
+# Next we create a function that runs different ARIMA models and picks the best, 
+# then forcast into the future. 
 
-fit <- bed_sm |>
+forecast_best_model <- function(.data){
+  arima_models <- .data |>
   model(arima210 = ARIMA(value ~ pdq(2,1,0)),
-        arima013 = ARIMA(value ~ pdq(0,1,3)),
         stepwise = ARIMA(value),
         search = ARIMA(value, stepwise=FALSE))
+  
+  best_model <- 
+    arima_models |>
+    glance() |>
+    filter(AIC == min(AIC)) |>
+    pull(.model)
+  
+  forecasted_data <-
+    arima_models |>
+    select(all_of(best_model))|>
+    forecast(h=15)
+    
+  return(forecasted_data)
+}
 
-# Let us find out which model has the lowest AIC value and use that to forcast.
-glance(fit) |> arrange(AICc) |> select(.model:BIC)
+# Read about this later "all_of" as it stops the error
+# Let's see if our function works
+single_forecasted_data <- forecast_best_model(bed_data_single_model)
 
-# Now let us forecast
-forecast(fit, h=15) |>
-  filter(.model=="arima013") |>
-  autoplot(bed_sm) +
-  labs(title = "One Single Model Using ARIMA ",
-       y="Percentage")
+#Now let us have a look at our forcasted data in a plot
+single_forecasted_data|> autoplot(bed_data_single_model)
 
-# Seasonal Arima
-seasonal_ <- bed_sm|>
-  model(
-    arima012011 = ARIMA(value ~ pdq(0,1,2) + PDQ(0,1,1)),
-    arima210011 = ARIMA(value ~ pdq(2,1,0) + PDQ(0,1,1)),
-    auto = ARIMA(value, stepwise = FALSE, approx = FALSE)
-  )
+# The function below forecast's and converts the output to a tsibble. 
 
-glance(seasonal_) |> arrange(AICc) |> select(.model:BIC)
+#forecast_best_model_tsibble <- function(.data){
+#  arima_models <- .data |>
+#  model(arima210 = ARIMA(value ~ pdq(2,1,0)),
+#        stepwise = ARIMA(value),
+#        search = ARIMA(value, stepwise=FALSE))
+#  
+#  best_model <- 
+#    arima_models |>
+#    glance() |>
+#    filter(AIC == min(AIC)) |>
+#    pull(.model)
+#  
+#  forecasted_data <-
+#    arima_models |>
+#    select(all_of(best_model))|>
+#    forecast(h=15)
+#  
+#  forecasted_data_tsibble <- tsibble(
+#    quarter = forecasted_data$quarter,
+#    value = forecasted_data$value,
+#    index = quarter
+#  )
+    
+#  return(forecasted_data_tsibble)
+#}
 
-forecast(seasonal_, h=35) |>
-  filter(.model=="arima012011") |>
-  autoplot(bed_sm) +
-  labs(title = "One Single Model Using SARIMA ",
-       y="Percentage OK ")
+# Let's see if our function works
 
+#single_forecasted_tsibble <- forecast_best_model_tsibble(bed_data_single_model)
+#single_forecasted_tsibble
 
-# Differencing
-
-dif_fit <- bed_sm |>
-  model(arima210 = ARIMA(diff_value ~ pdq(2,1,0)),
-        arima013 = ARIMA(diff_value ~ pdq(0,1,3)),
-        stepwise = ARIMA(diff_value),
-        search = ARIMA(diff_value, stepwise=FALSE))
-
-# Let us find out which model has the lowest AIC value and use that to forcast.
-glance(dif_fit) |> arrange(AICc) |> select(.model:BIC)
-
-# Now let us forecast
-forecast(dif_fit, h=15) |>
-  filter(.model=="search") |>
-  autoplot(bed_sm) +
-  labs(title = "Differencing Plot Using ARIMA",
-       y="Percentage")
-
-# Now lets see what the seasonal Arima does
-
-seasonal_a <- bed_sm|>
-  model(
-    arima012011 = ARIMA(log_value ~ pdq(0,1,2) + PDQ(0,1,1)),
-    arima210011 = ARIMA(log_value ~ pdq(2,1,0) + PDQ(0,1,1)),
-    auto = ARIMA(log_value, stepwise = FALSE, approx = FALSE)
-  )
-
-glance(seasonal_a) |> arrange(AICc) |> select(.model:BIC)
-
-forecast(seasonal_a, h=15) |>
-  filter(.model=="arima012011") |>
-  autoplot(bed_sm) +
-  labs(title = "Differencing Plot Using SARIMA",
-       y="Percentage")
-
-
-forecast(seasonal_a, h=35) |>
-  filter(.model=="auto") |>
-  autoplot(bed_sm) +
-  labs(title = "Differencing Plot Using SARIMA",
-       y="Percentage ")
 
 #############################################################################################################
 # Running Our Model on Multiple Trust
-
+# Replace all NAN as NA so we can drop them
 multi_trust[multi_trust==NaN] <- NA
+
 bed_time <- multi_trust |> 
   drop_na()|>
   pivot_longer(cols = !c(`Org Code`)) |>
@@ -370,7 +337,7 @@ bed_time <- multi_trust |>
 
 
 # Converting our data to a tssible object in order to run Time series analysis and models
-multi <- tsibble(
+multiple_trust <- tsibble(
   quarter = bed_time$Quarter,
   org_code = bed_time$`Org Code`,
   value = bed_time$value,
@@ -378,81 +345,86 @@ multi <- tsibble(
   index = quarter
 )
 
-malt <- multi |>
+# Nesting all the trust so we can run our models on all trust
+
+multiple_trust_nested <- multiple_trust |>
   group_by(org_code)|>
   nest()
 
-a=1
+# Testing to see if a for loop will run on multiple trust
+# i am only going to take a sample of 2 trusts
+# I have put the break function for it to stop at 3
+t <- 1
+test_list_for_multiple_trusts <- list()
 
-kist <- list()
+for (tr in multiple_trust_nested$data) {
+ test_list_for_multiple_trusts[[t]] <- 
+  forecast_best_model(tr)    
+  t= t+1
+  if (t == 3) {
+    break
+  }
+} 
 
-for (lo in malt$data) {
-  
-  kist[[a]] <- lo |>
-  model(arima210 = ARIMA(value ~ pdq(2,1,0)),
-        arima013 = ARIMA(value ~ pdq(0,1,3)),
-        stepwise = ARIMA(value),
-        search = ARIMA(value, stepwise=FALSE))
-  a= a+1
+# Creating an emptylist to hold all our plots
+# First let us plot one 
+plot_test <- test_list_for_multiple_trusts[[1]] |> autoplot(multiple_trust_nested$data[[1]])
+plot_test
 
-}
+# The code below doesn't work. Try it later
+#plott <- 1
+#plot_list <- list()
 
-#jist <- list()
-#m=1
-#for (wu in kist) {
-#  jist[[m]] <- glance(wu) |> arrange(AICc) |> select(.model:BIC)
-
-#  m= m+1
+#for (h in test_list_for_multiple_trusts, trust in multiple_trust_nested$data) {
+#        plot_list[[plott]] <- h |> autoplot(trust)
+#        plott = plott + 1
+#    if (plott ==2) {
+#      break
+#    }
 #}
 
+# Now to map, let see if the function can work on  multiple trust using map from purrr package
 
-#jist[[180]] |> 
-#filter(AIC == min(AIC)) |> 
-#select(.model) |>
-#filter(row_number ()==1)
+mulit_model_mapped <- map(.x = multiple_trust_nested$data, ~ forecast_best_model(.x))
 
-#kist[[180]] |> 
-#filter(AIC == min(AIC)) |> 
-#select(.model) |>
-#filter(row_number ()==1)
+# It works.
+# I need to see how I can determine the length of my output just like my for loop
 
-#forecast(kist[[1]], h=15) |>
-#  filter(.model==jist[[1]] |> 
-#                filter(AIC == min(AIC)) |> 
-#                select(.model) |>
-#                filter(row_number ()==1)) |>
-#  autoplot(malt$data[[1]]) +
-#  labs(title = "TRUSTS",
-#       y="Percentage")
+# Let us forecast and store it in a nest in our multi-trust_nested tsibble
+
+# Not Working
+
+#map_tsibble <- multiple_trust_nested |>
+#  group_by(org_code) |>
+#  nest()|>
+#  mutate(model = map(.x = data, ~ forecast_best_model_tsibble(.x)))
+
+#multiple_trust_nested
+
+# Using tidy() to save our output as a dataframe/tssible
+#multiple_trust_nested |>
+#  group_by(org_code) |>
+#  nest()|>
+#  mutate(model = map(.x = data, ~ forecast_best_model|>
+#  tidy()))
+
+#multiple_trust_nested |>
+#  group_by(org_code) |>
+#  nest()|>
+#  mutate(model = map(.x = data, ~ forecast_best_model)|>
+#  tidy())
 
 
-#b=1
-#c=1
-#pist <- list()
-#nist <- list()
+#####################################################################################
 
-#for (bo in malt$data, co in pist, do in nist) {
-#  
-#  pist[[b]] <- bo |>
-#  model(arima210 = ARIMA(value ~ pdq(2,1,0)),
-#        arima013 = ARIMA(value ~ pdq(0,1,3)),
-#        stepwise = ARIMA(value),
-#        search = ARIMA(value, stepwise=FALSE))
-#  b= b+1
+#     Things I should work on
 
-#  nist[[c]] <- glance(co) |> arrange(AICc) |> select(.model:BIC)
+# 1. [Line 24]  Find a better way to create a for loop
+#               that will clean and store the bed data with different file format  
 
-#  c= c+1
+# 2. [Line 195] Find a better way to extra the quarter names and rename it automaticly
+#               it will save time when you decided to run your model on partcular quarters 
+#               different from what we used above
 
-#  forecast(co, h=15) |>
-#  filter(.model== do |> 
-#                filter(AIC == min(AIC)) |> 
-#                select(.model) |>
-#                filter(row_number ()==1)) |>
-#  autoplot(bo) +
-#  labs(title = "TRUSTS",
-#       y="Percentage")
-  
-  
-
-#}
+# 3. [Line 237] I need to handle the missing data as it i loose valuable data that will better 
+#               train my model
